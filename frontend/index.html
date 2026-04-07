@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora API - Frontend</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .form-group {
+      margin: 15px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    #resultado {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 18px;
+      min-height: 60px;
+    }
+    .sucesso { background: #d4edda; color: #155724; }
+    .erro { background: #f8d7da; color: #721c24; }
+    .historico {
+      margin-top: 30px;
+    }
+    .historico-item {
+      background: #f8f9fa;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧮 Calculadora API</h1>
+    <p style="text-align: center; color: #666;">Frontend consumindo FastAPI</p>
+
+    <div class="form-group">
+      <label>Número 1</label>
+      <input type="number" id="num1" value="10" step="any">
+    </div>
+
+    <div class="form-group">
+      <label>Número 2</label>
+      <input type="number" id="num2" value="5" step="any">
+    </div>
+
+    <div class="form-group">
+      <label>Operação</label>
+      <select id="operacao">
+        <option value="somar">Soma (+)</option>
+        <option value="subtrair">Subtração (-)</option>
+        <option value="multiplicar">Multiplicação (×)</option>
+        <option value="dividir">Divisão (÷)</option>
+      </select>
+    </div>
+
+    <button onclick="calcular()">Calcular</button>
+
+    <div id="resultado"></div>
+
+    <div class="historico">
+      <h3>📋 Histórico de Cálculos</h3>
+      <button onclick="carregarHistorico()" style="width: auto; padding: 8px 16px; font-size: 14px;">Atualizar Histórico</button>
+      <div id="lista-historico"></div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "http://localhost:8000";
+
+    async function calcular() {
+      const num1 = parseFloat(document.getElementById('num1').value);
+      const num2 = parseFloat(document.getElementById('num2').value);
+      const operacao = document.getElementById('operacao').value;
+
+      const resultadoDiv = document.getElementById('resultado');
+      resultadoDiv.innerHTML = "Calculando...";
+
+      try {
+        let response;
+        
+        if (operacao === "dividir" && num2 === 0) {
+          resultadoDiv.innerHTML = `<div class="erro">Erro: Divisão por zero não é permitida!</div>`;
+          return;
+        }
+
+        response = await fetch(`${BASE_URL}/${operacao}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ numero1: num1, numero2: num2 })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          resultadoDiv.innerHTML = `
+            <div class="sucesso">
+              <strong>${operacao.toUpperCase()}</strong><br>
+              ${num1} ${getSimbolo(operacao)} ${num2} = <strong>${data.resultado}</strong><br>
+              <small>${data.criado_em}</small>
+            </div>
+          `;
+        } else {
+          resultadoDiv.innerHTML = `<div class="erro">Erro: ${data.detail || 'Falha na requisição'}</div>`;
+        }
+
+        setTimeout(carregarHistorico, 800);
+
+      } catch (error) {
+        resultadoDiv.innerHTML = `<div class="erro">Erro de conexão com a API. Verifique se o servidor está rodando.</div>`;
+      }
+    }
+
+    function getSimbolo(op) {
+      switch(op) {
+        case "somar": return "+";
+        case "subtrair": return "-";
+        case "multiplicar": return "×";
+        case "dividir": return "÷";
+        default: return "";
+      }
+    }
+
+    async function carregarHistorico() {
+      const lista = document.getElementById('lista-historico');
+      lista.innerHTML = "Carregando histórico...";
+
+      try {
+        const response = await fetch(`${BASE_URL}/historico`);
+        const historico = await response.json();
+
+        if (historico.length === 0) {
+          lista.innerHTML = "<p>Nenhum cálculo realizado ainda.</p>";
+          return;
+        }
+
+        let html = '';
+        historico.forEach(item => {
+          html += `
+            <div class="historico-item">
+              <strong>${item.operacao.toUpperCase()}</strong> → 
+              ${item.numero1} ${getSimbolo(item.operacao)} ${item.numero2} = 
+              <strong>${item.resultado}</strong>
+              <br><small>${item.criado_em}</small>
+            </div>
+          `;
+        });
+
+        lista.innerHTML = html;
+      } catch (error) {
+        lista.innerHTML = "<p style='color:red'>Erro ao carregar histórico.</p>";
+      }
+    }
+
+    window.onload = () => {
+      carregarHistorico();
+    };
+  </script>
+</body>
+</html>
