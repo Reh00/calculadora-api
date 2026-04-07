@@ -10,7 +10,7 @@ API REST de calculadora desenvolvida com **FastAPI** e **Python**.
 
 ### 1. Clone o repositório
 ```bash
-git clone https://github.com/seu-usuario/calculadora-api.git
+git clone https://github.com/Reh00/calculadora-api
 cd calculadora-api
 ```
 
